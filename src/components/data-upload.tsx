@@ -116,7 +116,7 @@ const DataUpload = () => {
   return (
     <div className="flex flex-col items-center justify-center w-full">
       <input type="file" onChange={handleFileChange} className="mb-4" />
-      <Button onClick={handleUpload} disabled={!file}>Upload and Analyze</Button>
+      <Button onClick={handleUpload} disabled={file === null}>Upload and Analyze</Button>
 
       {uploadProgress > 0 && (
         <div className="w-full mt-4">
