@@ -40,7 +40,10 @@ export async function processSurveyData(file: File): Promise<SurveyData[]> {
             reject(new Error(`Failed to parse JSON file: ${jsonError.message}`));
             return;
           }
-        }
+        } else if (fileType === 'xlsx' || fileType === 'xls') {
+             reject(new Error("Excel files are not supported. Please upload a CSV or JSON file."));
+             return;
+          }
          else {
           reject(new Error("Unsupported file type. Please upload a CSV or JSON file."));
           return;
@@ -109,4 +112,5 @@ function parseCSV(csvText: string): SurveyData[] {
 
   return data;
 }
+
 
