@@ -1,4 +1,3 @@
-// src/ai/flows/kpi-detection.ts
 'use server';
 /**
  * @fileOverview Identifies key performance indicators (KPIs) from numerical survey responses.
@@ -10,7 +9,6 @@
 
 import {ai} from '@/ai/ai-instance';
 import {z} from 'genkit';
-import {SurveyData} from '@/services/data-upload';
 
 const DetectKpisInputSchema = z.object({
   surveyData: z.array(z.record(z.any())).describe('Array of survey responses; each response is an object.'),
@@ -62,7 +60,27 @@ const detectKpisFlow = ai.defineFlow<
     outputSchema: DetectKpisOutputSchema,
   },
   async input => {
-    const {output} = await detectKpisPrompt(input);
-    return output!;
+    const maxRetries = 3;
+    let retries = 0;
+    let delay = 2000; // Initial delay of 2 seconds
+    
+    while (retries < maxRetries) {
+      try {
+        const {output} = await detectKpisPrompt(input);
+        return output!;
+      } catch (error: any) {
+        if (error.message.includes('429 Too Many Requests')) {
+          console.warn(`Rate limit exceeded. Retrying in ${delay / 1000} seconds...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          delay *= 2; // Exponential backoff
+          retries++;
+        } else {
+          // If it's not a rate limit error, re-throw the error
+          throw error;
+        }
+      }
+    }
+    
+    throw new Error('Failed to detect KPIs after multiple retries due to rate limiting.');
   }
 );
