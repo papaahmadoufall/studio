@@ -14,32 +14,45 @@ export interface SurveyData {
 export async function processSurveyData(file: File): Promise<SurveyData[]> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       try {
         const content = event.target?.result as string;
+        const fileType = file.name.split('.').pop()?.toLowerCase();
 
-        // Attempt to parse the file content as JSON
-        let data;
-        try {
-          // Try parsing the entire content as a single JSON object
-          data = JSON.parse(content);
-          
-          // Check if the parsed data is already an array
-          if (!Array.isArray(data)) {
-            // If it's not an array, try wrapping it in an array
-            data = [data];
-          }
-        } catch (jsonError) {
-          // If JSON parsing fails, attempt to parse as CSV
+        let data: SurveyData[];
+
+        if (fileType === 'csv') {
           try {
             data = parseCSV(content);
-          } catch (csvError) {
+          } catch (csvError: any) {
             console.error("Error parsing as CSV:", csvError);
-            reject(new Error("Failed to parse file as JSON or CSV."));
+            reject(new Error(`Failed to parse CSV file: ${csvError.message}`));
+            return;
+          }
+        } else if (fileType === 'json') {
+          try {
+            data = JSON.parse(content);
+            if (!Array.isArray(data)) {
+              data = [data]; // Wrap single JSON object in an array for consistency
+            }
+          } catch (jsonError: any) {
+            console.error("Error parsing as JSON:", jsonError);
+            reject(new Error(`Failed to parse JSON file: ${jsonError.message}`));
             return;
           }
         }
+         else {
+          reject(new Error("Unsupported file type. Please upload a CSV or JSON file."));
+          return;
+        }
+
+        if (!Array.isArray(data)) {
+           reject(new Error("The file must contain an array of survey responses."));
+           return;
+        }
+
         resolve(data);
+
       } catch (e: any) {
         console.error("Error processing file content:", e);
         reject(new Error(`Error processing file content: ${e.message}`));
