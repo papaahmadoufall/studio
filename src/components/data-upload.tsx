@@ -38,8 +38,7 @@ const DataUpload = () => {
       setSurveyData(data);
 
       // KPI Detection
-      // Wrap the data in an array to match the schema
-      const kpiResult = await detectKpis({ surveyData: [data] });
+      const kpiResult = await detectKpis({ surveyData: data });
       setKpis(kpiResult.kpis);
 
       // Thematic Analysis (example with first 5 responses)
