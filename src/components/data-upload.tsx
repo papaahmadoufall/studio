@@ -6,6 +6,9 @@ import { processSurveyData } from '@/services/data-upload';
 import { detectKpis } from '@/ai/flows/kpi-detection';
 import { analyzeSentiment } from '@/ai/flows/sentiment-analysis';
 import { thematicAnalysis } from '@/ai/flows/thematic-analysis';
+import { useToast } from "@/hooks/use-toast"
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 const DataUpload = () => {
   const [file, setFile] = useState<File | null>(null);
@@ -13,6 +16,7 @@ const DataUpload = () => {
   const [kpis, setKpis] = useState<string[]>([]);
   const [themes, setThemes] = useState<any[]>([]);
   const [sentimentScores, setSentimentScores] = useState<any[]>([]);
+  const { toast } = useToast()
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files.length > 0) {
@@ -22,7 +26,10 @@ const DataUpload = () => {
 
   const handleUpload = async () => {
     if (!file) {
-      alert("Please select a file first!");
+      toast({
+        title: "No file selected",
+        description: "Please select a file first!",
+      })
       return;
     }
 
@@ -49,10 +56,18 @@ const DataUpload = () => {
         }));
         setSentimentScores(sentimentResults);
       }
+      toast({
+        title: "Upload successful",
+        description: "Data has been processed and analyzed.",
+      })
 
     } catch (error: any) {
       console.error("Error processing data:", error);
-      alert(`Error processing data: ${error.message}`);
+      toast({
+        variant: "destructive",
+        title: "Upload failed",
+        description: `Error processing data: ${error.message}`,
+      })
     }
   };
 
@@ -65,52 +80,72 @@ const DataUpload = () => {
         <div className="mt-8 w-full">
           <h2 className="text-xl font-semibold mb-2">Analysis Results</h2>
 
-          <div className="mb-4">
-            <h3 className="text-lg font-semibold">Key Performance Indicators</h3>
-            {kpis.length > 0 ? (
-              <ul>
-                {kpis.map((kpi, index) => (
-                  <li key={index}>{kpi}</li>
-                ))}
-              </ul>
-            ) : (
-              <p>No KPIs detected.</p>
-            )}
-          </div>
-
-          <div className="mb-4">
-            <h3 className="text-lg font-semibold">Thematic Analysis</h3>
-            {themes.length > 0 ? (
-              <ul>
-                {themes.map((theme, index) => (
-                  <li key={index}>
-                    <strong>Theme:</strong> {theme.theme}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <Card>
+              <CardHeader>
+                <CardTitle>Key Performance Indicators</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ScrollArea className="h-[200px] w-full">
+                  {kpis.length > 0 ? (
                     <ul>
-                      {theme.responses.map((response, rIndex) => (
-                        <li key={rIndex}>{response}</li>
+                      {kpis.map((kpi, index) => (
+                        <li key={index} className="text-sm">{kpi}</li>
                       ))}
                     </ul>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p>No themes analyzed.</p>
-            )}
-          </div>
+                  ) : (
+                    <p className="text-sm">No KPIs detected.</p>
+                  )}
+                </ScrollArea>
+              </CardContent>
+            </Card>
 
-          <div>
-            <h3 className="text-lg font-semibold">Sentiment Analysis</h3>
-            {sentimentScores.length > 0 ? (
-              <ul>
-                {sentimentScores.map((sentiment, index) => (
-                  <li key={index}>
-                    <strong>Sentiment:</strong> {sentiment.sentimentLabel} (Score: {sentiment.sentimentScore})
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p>No sentiments analyzed.</p>
-            )}
+            <Card>
+              <CardHeader>
+                <CardTitle>Thematic Analysis</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ScrollArea className="h-[200px] w-full">
+                  {themes.length > 0 ? (
+                    <ul>
+                      {themes.map((theme, index) => (
+                        <li key={index} className="mb-4">
+                          <strong className="block font-medium">{theme.theme}</strong>
+                          <ul>
+                            {theme.responses.map((response, rIndex) => (
+                              <li key={rIndex} className="text-sm">{response}</li>
+                            ))}
+                          </ul>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-sm">No themes analyzed.</p>
+                  )}
+                </ScrollArea>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Sentiment Analysis</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ScrollArea className="h-[200px] w-full">
+                  {sentimentScores.length > 0 ? (
+                    <ul>
+                      {sentimentScores.map((sentiment, index) => (
+                        <li key={index} className="text-sm">
+                          <strong>Sentiment:</strong> {sentiment.sentimentLabel} (Score: {sentiment.sentimentScore})
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-sm">No sentiments analyzed.</p>
+                  )}
+                </ScrollArea>
+              </CardContent>
+            </Card>
           </div>
         </div>
       )}
