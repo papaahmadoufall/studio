@@ -38,8 +38,20 @@ const DataUpload = () => {
       setSurveyData(data);
 
       // KPI Detection
-      const kpiResult = await detectKpis({ surveyData: data });
-      setKpis(kpiResult.kpis);
+      // Ensure that surveyData is an array before passing it to detectKpis
+      if (Array.isArray(data)) {
+        const kpiResult = await detectKpis({ surveyData: data });
+        setKpis(kpiResult.kpis);
+      } else {
+        console.error("Survey data is not an array:", data);
+        toast({
+          variant: "destructive",
+          title: "Analysis failed",
+          description: "Uploaded data is not in the correct format.",
+        });
+        return;
+      }
+
 
       // Thematic Analysis (example with first 5 responses)
       if (data.length > 0) {

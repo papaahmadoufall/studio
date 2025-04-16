@@ -21,7 +21,14 @@ export async function processSurveyData(file: File): Promise<SurveyData[]> {
         // Attempt to parse the file content as JSON
         let data;
         try {
+          // Try parsing the entire content as a single JSON object
           data = JSON.parse(content);
+          
+          // Check if the parsed data is already an array
+          if (!Array.isArray(data)) {
+            // If it's not an array, try wrapping it in an array
+            data = [data];
+          }
         } catch (jsonError) {
           // If JSON parsing fails, attempt to parse as CSV
           try {
