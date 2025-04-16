@@ -36,9 +36,14 @@ export async function processSurveyData(file: File): Promise<SurveyData[]> {
               data = [data]; // Wrap single JSON object in an array for consistency
             }
           } catch (jsonError: any) {
-            console.error("Error parsing as JSON:", jsonError);
-            reject(new Error(`Failed to parse JSON file: ${jsonError.message}`));
-            return;
+            console.warn("Error parsing as JSON, attempting CSV parse:", jsonError);
+             try {
+                data = parseCSV(content);
+              } catch (csvError: any) {
+                console.error("Error parsing as CSV:", csvError);
+                reject(new Error(`Failed to parse CSV file: ${csvError.message}`));
+                return;
+              }
           }
         } else if (fileType === 'xlsx' || fileType === 'xls') {
              reject(new Error("Excel files are not supported. Please upload a CSV or JSON file."));
@@ -112,5 +117,6 @@ function parseCSV(csvText: string): SurveyData[] {
 
   return data;
 }
+
 
 
