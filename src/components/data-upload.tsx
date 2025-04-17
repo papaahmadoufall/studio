@@ -1,6 +1,9 @@
 "use client";
 
 import { useState } from 'react';
+import { useAIModeStore } from '@/stores/aiModeStore';
+import { ollamaService } from '@/services/ollamaService';
+import { ai } from '@/ai/ai-instance';
 import { Button } from "@/components/ui/button"
 import { processSurveyData } from '@/services/data-upload';
 import { detectKpis } from '@/ai/flows/kpi-detection';
@@ -12,6 +15,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Progress } from "@/components/ui/progress"
 
 const DataUpload = () => {
+  const { isLocalAI } = useAIModeStore();
   const [file, setFile] = useState<File | null>(null);
   const [surveyData, setSurveyData] = useState<any[]>([]);
   const [kpis, setKpis] = useState<string[]>([]);
