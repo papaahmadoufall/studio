@@ -81,28 +81,49 @@ export async function processSurveyData(file: File): Promise<SurveyData[]> {
  * @returns An array of SurveyData objects.
  */
 function parseCSV(csvText: string): SurveyData[] {
-  const lines = csvText.split('\n');
+  // Handle different line endings
+  const normalizedText = csvText.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  const lines = normalizedText.split('\n').filter(line => line.trim().length > 0);
+
   if (lines.length < 2) {
     throw new Error('CSV file must have a header and at least one data row.');
   }
 
-  const headers = lines[0].split(',').map(header => header.trim());
+  // Detect if the CSV is tab-delimited or comma-delimited
+  const delimiter = lines[0].includes('\t') ? '\t' : ',';
+
+  // Parse headers, handling quoted values
+  const headers = parseCSVLine(lines[0], delimiter).map(header => header.trim());
   const data: SurveyData[] = [];
 
   for (let i = 1; i < lines.length; i++) {
-    const values = lines[i].split(',').map(value => value.trim());
+    if (lines[i].trim().length === 0) continue;
+
+    const values = parseCSVLine(lines[i], delimiter);
+
     if (values.length !== headers.length) {
-      console.warn(`Skipping row ${i + 1} due to inconsistent number of columns.`);
-      continue;
+      // Try to handle misaligned data by padding or truncating
+      if (values.length < headers.length) {
+        // Pad with empty values
+        while (values.length < headers.length) {
+          values.push('');
+        }
+      } else {
+        // Truncate extra values
+        values.length = headers.length;
+      }
+      console.warn(`Row ${i + 1} had ${values.length} columns, expected ${headers.length}. Adjusted.`);
     }
 
     const row: SurveyData = {};
     for (let j = 0; j < headers.length; j++) {
-      const header = headers[j];
-      const value = values[j];
+      const header = headers[j] || `column${j}`; // Fallback for empty headers
+      const value = values[j] ? values[j].trim() : '';
 
       // Attempt to convert to number or boolean
-      if (!isNaN(Number(value))) {
+      if (value === '') {
+        row[header] = null;
+      } else if (!isNaN(Number(value)) && value !== '') {
         row[header] = Number(value);
       } else if (value.toLowerCase() === 'true') {
         row[header] = true;
@@ -116,6 +137,42 @@ function parseCSV(csvText: string): SurveyData[] {
   }
 
   return data;
+}
+
+/**
+ * Parses a CSV line, handling quoted values correctly
+ */
+function parseCSVLine(line: string, delimiter: string = ','): string[] {
+  const result: string[] = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+
+    if (char === '"') {
+      // Handle quotes
+      if (inQuotes && i + 1 < line.length && line[i + 1] === '"') {
+        // Double quotes inside quotes - add a single quote
+        current += '"';
+        i++;
+      } else {
+        // Toggle quote mode
+        inQuotes = !inQuotes;
+      }
+    } else if (char === delimiter && !inQuotes) {
+      // End of field
+      result.push(current);
+      current = '';
+    } else {
+      // Normal character
+      current += char;
+    }
+  }
+
+  // Add the last field
+  result.push(current);
+  return result;
 }
 
 

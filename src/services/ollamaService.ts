@@ -1,20 +1,26 @@
 import axios from 'axios';
+import { useAIModeStore } from '@/stores/aiModeStore';
 
 const OLLAMA_BASE_URL = 'http://localhost:11434';
 
 export class OllamaService {
-  async generateResponse(prompt: string) {
+  async generateResponse(prompt: string, modelId?: string) {
     try {
+      // Get the selected model from the store if not provided
+      const model = modelId || useAIModeStore.getState().selectedModel.id;
+
+      console.log(`Sending request to Ollama with model: ${model}`);
+
       const response = await axios.post(`${OLLAMA_BASE_URL}/api/generate`, {
-        model: 'gemma:3b',
+        model: model,
         prompt: prompt,
         stream: false
       });
-      
+
       return response.data.response;
-    } catch (error) {
-      console.error('Error calling Ollama:', error);
-      throw new Error('Failed to get response from local AI');
+    } catch (error: any) {
+      console.error('Error calling Ollama:', error.response?.data || error.message);
+      throw new Error(`Failed to get response from local AI: ${error.response?.data?.error || error.message}`);
     }
   }
 

@@ -58,6 +58,20 @@ Identify the main themes discussed in the feedback and return an array of themes
 `,
 });
 
+const preprocessResponses = (responses: string[]): string[] => {
+  return responses.map(response => {
+    // Convert to lowercase for uniformity
+    let processed = response.toLowerCase();
+
+    // Remove special characters and extra spaces
+    processed = processed.replace(/[^a-zA-Z0-9\s]/g, '').trim();
+
+    // Optionally, add stemming or lemmatization here if needed
+
+    return processed;
+  });
+};
+
 const thematicAnalysisFlow = ai.defineFlow<
   typeof ThematicAnalysisInputSchema,
   typeof ThematicAnalysisOutputSchema
@@ -68,7 +82,12 @@ const thematicAnalysisFlow = ai.defineFlow<
     outputSchema: ThematicAnalysisOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input);
+    // Preprocess the responses before passing to the AI prompt
+    const preprocessedInput = {
+      verbatimResponses: preprocessResponses(input.verbatimResponses),
+    };
+
+    const {output} = await prompt(preprocessedInput);
     return output!;
   }
 );
