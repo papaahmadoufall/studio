@@ -409,7 +409,7 @@ RETURN ONLY THIS JSON FORMAT WITHOUT ANY OTHER TEXT OR FORMATTING:
             // Create a theme for each item with a subset of responses
             const responsesPerTheme = Math.ceil(verbatimResponses.length / themeItems.length);
 
-            themeItems.forEach((item, index) => {
+            themeItems.forEach((item: string, index: number) => {
               const theme = item.replace(/(?:-|\*|\d+\.)\s*/, '').trim();
               const startIdx = index * responsesPerTheme;
               const endIdx = Math.min(startIdx + responsesPerTheme, verbatimResponses.length);
@@ -457,3 +457,4 @@ RETURN ONLY THIS JSON FORMAT WITHOUT ANY OTHER TEXT OR FORMATTING:
 }
 
 export const localAIService = new LocalAIService();
+

@@ -38,6 +38,7 @@ const detectKpisPrompt = ai.definePrompt({
       explanation: z.string().describe('Explanation of why these KPIs are important.'),
     }),
   },
+  // prompt: ` you are an expert data analyst specializing in custumer experience, in your profile you have analyse a large data input, and to select the most impactful kpi you use the correlation analysis, you have to select the most impactfull kpi, and explain why you have selected this kpi, and return the kpi name and the explanation, without any other text or formatting, `   ,
   prompt: `You are an expert data analyst specializing in survey data.
 
   Analyze the provided survey data to identify the key performance indicators (KPIs).
