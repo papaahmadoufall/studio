@@ -3,7 +3,268 @@ import { useAIModeStore } from '@/stores/aiModeStore';
 import { safeJsonParse } from '@/utils/json-parser';
 
 export class LocalAIService {
-  async detectKpis(surveyData: any[]) {
+  // Helper method to call the local AI API
+  private async callLocalAI(prompt: string, model: string) {
+    try {
+      const response = await fetch('/api/local-ai', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prompt,
+          model
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to get response from local AI');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error calling local AI:', error);
+      throw error;
+    }
+  }
+
+  // Comprehensive analysis method that handles all aspects of survey analysis
+  async comprehensiveAnalysis(surveyData: any[], verbatimResponses: string[], language: string = 'en') {
+    try {
+      const { selectedModel } = useAIModeStore.getState();
+
+      // Get language-specific instructions
+      const languageInstructions = this.getLanguageInstructions(language, 'theme');
+
+      // Log the data size for debugging
+      console.log(`Comprehensive analysis: Processing ${surveyData.length} survey rows and ${verbatimResponses.length} comments`);
+
+      // Limit the survey data to avoid overwhelming the model
+      const surveyDataSample = surveyData.length > 20 ? surveyData.slice(0, 20) : surveyData;
+
+      // Process all verbatim responses but summarize them for the prompt
+      const totalResponses = verbatimResponses.length;
+      console.log(`Total verbatim responses to analyze: ${totalResponses}`);
+
+      // Take a representative sample of verbatim responses for the AI prompt
+      // but we'll use the full dataset for analysis later
+      const verbatimSample = verbatimResponses.length > 100
+        ? verbatimResponses.slice(0, 100)
+        : verbatimResponses;
+
+      const prompt = `You are an expert data analyst specializing in survey analysis. Perform a comprehensive analysis of the provided survey data covering three aspects: KPIs, Themes, and Sentiment.
+
+SURVEY DATA (${surveyData.length} total rows, showing first ${surveyDataSample.length} as sample):
+${JSON.stringify(surveyDataSample, null, 2)}
+
+VERBATIM RESPONSES (${totalResponses} total comments, showing ${verbatimSample.length} as sample):
+${verbatimSample.map(response => `- ${response}`).join('\n')}
+
+${languageInstructions}
+
+ANALYSIS INSTRUCTIONS:
+
+1. KPI ANALYSIS:
+- Identify 3-5 most impactful numerical metrics from the survey data
+- Focus on metrics that correlate with overall satisfaction or performance
+- Exclude demographic data unless directly relevant to performance
+- Calculate importance scores (0-1) and correlation coefficients
+
+2. THEMATIC ANALYSIS:
+- Identify 3-5 main themes from verbatim responses
+- Group similar responses under each theme
+- Ensure themes are distinct and meaningful
+- Consider both explicit and implicit patterns
+
+3. SENTIMENT ANALYSIS:
+- Score each theme's sentiment (-1 to 1)
+- Calculate overall sentiment distribution
+- Categorize each comment as positive, neutral, or negative
+- Count the total number of comments analyzed
+- Consider:
+  * Explicit sentiment words
+  * Context and tone
+  * Cultural expressions of satisfaction/dissatisfaction
+  * Numerical ratings if present
+
+4. NPS CALCULATION (if applicable):
+- Calculate Net Promoter Score if the data contains ratings
+- Identify promoters (9-10), passives (7-8), and detractors (0-6)
+- Calculate percentages and final NPS score
+
+OUTPUT FORMAT:
+{
+  "kpis": [
+    {
+      "name": "metric_name",
+      "importance": 0.0-1.0,
+      "correlation": -1.0-1.0
+    }
+  ],
+  "themes": [
+    {
+      "theme": "theme_name",
+      "responses": ["response1", "response2"],
+      "sentiment": -1.0-1.0
+    }
+  ],
+  "overallSentiment": {
+    "score": -1.0-1.0,
+    "distribution": {
+      "positive": 0-100,
+      "neutral": 0-100,
+      "negative": 0-100
+    },
+    "commentCount": ${totalResponses},
+    "categorizedComments": {
+      "positive": ["comment1", "comment2"],
+      "neutral": ["comment3", "comment4"],
+      "negative": ["comment5", "comment6"]
+    }
+  },
+  "nps": {
+    "score": number,
+    "promoters": 0-100,
+    "passives": 0-100,
+    "detractors": 0-100
+  }
+}
+
+RETURN ONLY THIS JSON FORMAT WITHOUT ANY OTHER TEXT OR FORMATTING.
+`;
+
+      const data = await this.callLocalAI(prompt, selectedModel.id);
+
+      // Parse the response as JSON using our safe parser
+      const jsonResponse = safeJsonParse(data.response);
+
+      if (jsonResponse) {
+        return jsonResponse;
+      }
+
+      // If safe parsing fails, try to extract JSON from the response using regex
+      console.error("Error parsing comprehensive analysis response using safeJsonParse");
+
+      const jsonMatch = data.response.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        try {
+          return JSON.parse(jsonMatch[0]);
+        } catch (e) {
+          console.error("Error parsing extracted JSON:", e);
+
+          // Create a fallback response structure with accurate comment count
+          return this.createFallbackResponse(verbatimResponses);
+        }
+      } else {
+        console.error("AI response did not contain valid JSON");
+
+        // Create a fallback response structure with accurate comment count
+        return this.createFallbackResponse(verbatimResponses);
+      }
+    } catch (error) {
+      console.error("Error in comprehensive analysis:", error);
+      throw error;
+    }
+  }
+
+  // Helper method to create a fallback response when AI fails
+  private createFallbackResponse(verbatimResponses: string[]) {
+    console.log(`Creating fallback analysis for ${verbatimResponses.length} comments`);
+
+    // Count total comments - ensure we're using the full dataset
+    const totalComments = verbatimResponses.length;
+    console.log(`Total comments for fallback analysis: ${totalComments}`);
+
+    // Simple sentiment analysis to distribute comments
+    const positiveWords = ['good', 'great', 'excellent', 'happy', 'satisfied', 'like', 'love', 'best', 'awesome'];
+    const negativeWords = ['bad', 'poor', 'terrible', 'unhappy', 'dissatisfied', 'dislike', 'hate', 'worst', 'awful'];
+
+    const positive: string[] = [];
+    const neutral: string[] = [];
+    const negative: string[] = [];
+
+    // Process all comments - no sampling here
+    console.log(`Processing all ${verbatimResponses.length} comments for sentiment analysis`);
+
+    // Categorize comments
+    verbatimResponses.forEach((comment, index) => {
+      if (index % 100 === 0) {
+        console.log(`Processed ${index} of ${verbatimResponses.length} comments`);
+      }
+
+      const text = comment.toLowerCase();
+      const posMatches = positiveWords.filter(word => text.includes(word)).length;
+      const negMatches = negativeWords.filter(word => text.includes(word)).length;
+
+      if (posMatches > negMatches) {
+        positive.push(comment);
+      } else if (negMatches > posMatches) {
+        negative.push(comment);
+      } else {
+        neutral.push(comment);
+      }
+    });
+
+    console.log(`Sentiment distribution: Positive=${positive.length}, Neutral=${neutral.length}, Negative=${negative.length}`);
+
+    // Calculate distribution percentages
+    const positivePercent = Math.round((positive.length / totalComments) * 100) || 0;
+    const negativePercent = Math.round((negative.length / totalComments) * 100) || 0;
+    const neutralPercent = 100 - positivePercent - negativePercent;
+
+    return {
+      kpis: [],
+      themes: [
+        {
+          theme: "General Feedback",
+          responses: verbatimResponses.slice(0, 10),
+          sentiment: 0
+        }
+      ],
+      overallSentiment: {
+        score: (positivePercent - negativePercent) / 100,
+        distribution: {
+          positive: positivePercent,
+          neutral: neutralPercent,
+          negative: negativePercent
+        },
+        commentCount: totalComments,
+        categorizedComments: {
+          positive,
+          neutral,
+          negative
+        }
+      }
+    };
+  }
+
+  // Helper method to get language-specific instructions
+  private getLanguageInstructions(language: string, analysisType: 'kpi' | 'sentiment' | 'theme'): string {
+    if (language === 'en') {
+      return ''; // Default language, no special instructions needed
+    }
+
+    // Common instruction for all analysis types
+    let instruction = `Note: The survey data is in ${language} language. `;
+
+    // Specific instructions based on analysis type
+    switch (analysisType) {
+      case 'kpi':
+        instruction += `Please consider language-specific nuances when identifying KPIs. Column names and values may be in ${language}.`;
+        break;
+      case 'sentiment':
+        instruction += `Please analyze sentiment considering ${language} language patterns and expressions. Cultural context may affect how sentiment is expressed.`;
+        break;
+      case 'theme':
+        instruction += `Please identify themes considering ${language} language patterns and cultural context. Group similar concepts that may be expressed differently than in English.`;
+        break;
+    }
+
+    return instruction;
+  }
+
+  async detectKpis(surveyData: any[], language: string = 'en') {
     try {
       const { selectedModel } = useAIModeStore.getState();
 
@@ -16,6 +277,9 @@ export class LocalAIService {
         return surveyData.some(row => typeof row[col] === 'number' || !isNaN(Number(row[col])));
       });
 
+      // Get language-specific instructions
+      const languageInstructions = this.getLanguageInstructions(language, 'kpi');
+
       const prompt = `
 Analyze this survey data and identify the key performance indicators (KPIs).
 
@@ -27,6 +291,8 @@ Numerical columns: ${numericColumns.join(', ')}
 
 Survey Data Sample:
 ${JSON.stringify(surveyDataSample, null, 2)}
+
+${languageInstructions}
 
 Identify 3-5 most important numerical metrics that would be considered KPIs.
 Do NOT include demographic data like 'age' unless it's truly a performance indicator.
@@ -129,7 +395,7 @@ RETURN ONLY THIS JSON FORMAT WITHOUT ANY OTHER TEXT OR FORMATTING:
     }
   }
 
-  async analyzeSentiment(verbatimResponse: string, context?: string) {
+  async analyzeSentiment(verbatimResponse: string, language: string = 'en', context?: string) {
     try {
       const { selectedModel } = useAIModeStore.getState();
 
@@ -149,11 +415,16 @@ RETURN ONLY THIS JSON FORMAT WITHOUT ANY OTHER TEXT OR FORMATTING:
           .join('\n') :
         String(verbatimResponse);
 
+      // Get language-specific instructions
+      const languageInstructions = this.getLanguageInstructions(language, 'sentiment');
+
       const prompt = `
 Perform sentiment analysis on this survey response:
 
 ${responseStr}
 ${context ? `\nAdditional context: ${context}` : ''}
+
+${languageInstructions}
 
 Look for indicators of positive, negative, or neutral sentiment.
 Consider:
@@ -285,7 +556,7 @@ RETURN ONLY THIS JSON FORMAT WITHOUT ANY OTHER TEXT OR FORMATTING:
     }
   }
 
-  async analyzeThemes(verbatimResponses: string[]) {
+  async analyzeThemes(verbatimResponses: string[], language: string = 'en') {
     try {
       const { selectedModel } = useAIModeStore.getState();
 
@@ -311,10 +582,15 @@ RETURN ONLY THIS JSON FORMAT WITHOUT ANY OTHER TEXT OR FORMATTING:
         }
       }).join('\n\n');
 
+      // Get language-specific instructions
+      const languageInstructions = this.getLanguageInstructions(language, 'theme');
+
       const prompt = `
 Analyze these survey responses and identify common themes or patterns:
 
 ${formattedResponses}
+
+${languageInstructions}
 
 Instructions:
 1. Identify 2-4 distinct themes based on the responses
@@ -367,63 +643,80 @@ RETURN ONLY THIS JSON FORMAT WITHOUT ANY OTHER TEXT OR FORMATTING:
       }
 
       // If parsing fails or the response doesn't have the expected structure,
-      // try to extract themes from the text
-      console.warn('Failed to parse thematic response as JSON, attempting to extract themes from text');
+      // try to extract the information from the text
+      console.warn('Failed to parse thematic analysis response as JSON, attempting to extract from text');
 
-      // Try to identify themes in the text
-      const themes: { theme: string; responses: string[] }[] = [];
+      // Create a default themes array
+      const themes: { theme: string, responses: string[] }[] = [];
 
-      // Look for sections that might contain themes
-      const themePatterns = [
-        /Theme\s*\d*\s*:\s*([^\n]+)[\s\S]*?Responses?\s*:\s*([\s\S]*?)(?=Theme|$)/gi,
-        /\d+\.\s*([^\n]+)[\s\S]*?Responses?\s*:\s*([\s\S]*?)(?=\d+\.|$)/gi,
-        /\*\s*([^\n]+)[\s\S]*?Responses?\s*:\s*([\s\S]*?)(?=\*|$)/gi
-      ];
-
-      for (const pattern of themePatterns) {
-        let match;
-        while ((match = pattern.exec(data.response)) !== null) {
-          if (match[1] && match[2]) {
-            const theme = match[1].trim();
-            const responsesText = match[2].trim();
-
-            // Extract individual responses
-            const responseItems = responsesText.split(/\n\s*[-*]\s*/).filter(Boolean);
-            const responses = responseItems.length > 0 ?
-              responseItems.map(r => r.trim()) :
-              [responsesText]; // If we can't split, use the whole text
-
-            themes.push({ theme, responses });
-          }
-        }
-      }
-
-      // If we couldn't find themes with the patterns, look for bullet points or numbered lists
-      if (themes.length === 0) {
-        const themeListMatch = data.response.match(/Themes?:\s*([\s\S]+)/i);
-        if (themeListMatch && themeListMatch[1]) {
-          const themeListText = themeListMatch[1];
-          const themeItems = themeListText.match(/(?:-|\*|\d+\.)\s*([^\n]+)/g);
-
-          if (themeItems) {
-            // Create a theme for each item with a subset of responses
-            const responsesPerTheme = Math.ceil(verbatimResponses.length / themeItems.length);
-
-            themeItems.forEach((item: string, index: number) => {
-              const theme = item.replace(/(?:-|\*|\d+\.)\s*/, '').trim();
-              const startIdx = index * responsesPerTheme;
-              const endIdx = Math.min(startIdx + responsesPerTheme, verbatimResponses.length);
-              const responses = verbatimResponses.slice(startIdx, endIdx);
-
-              themes.push({ theme, responses });
+      // Try to find themes in the text - try different patterns
+      const themesSection = data.response.match(/themes\s*:?\s*\[([\s\S]*?)\]/i);
+      if (themesSection && themesSection[1]) {
+        // Try to parse the themes array
+        try {
+          const themesArray = JSON.parse(`[${themesSection[1]}]`);
+          if (Array.isArray(themesArray)) {
+            themesArray.forEach((themeObj: any) => {
+              if (themeObj.theme && themeObj.responses) {
+                themes.push({
+                  theme: themeObj.theme,
+                  responses: Array.isArray(themeObj.responses) ? themeObj.responses : [String(themeObj.responses)]
+                });
+              }
             });
           }
+        } catch (e) {
+          console.warn('Failed to parse themes array:', e);
+
+          // Try to extract themes using regex
+          const themeItems = themesSection[1].match(/theme\s*:?\s*["']([^"']+)["']/gi);
+          const responsesItems = themesSection[1].match(/responses\s*:?\s*\[([\s\S]*?)\]/gi);
+
+          if (themeItems && responsesItems && themeItems.length === responsesItems.length) {
+            for (let i = 0; i < themeItems.length; i++) {
+              const themeMatch = themeItems[i].match(/theme\s*:?\s*["']([^"']+)["']/i);
+              const responsesMatch = responsesItems[i].match(/responses\s*:?\s*\[([\s\S]*?)\]/i);
+
+              if (themeMatch && themeMatch[1] && responsesMatch && responsesMatch[1]) {
+                const theme = themeMatch[1].trim();
+                const responsesText = responsesMatch[1].trim();
+
+                // Extract individual responses
+                const responseItems = responsesText.split(/\n\s*[-*]\s*/).filter(Boolean);
+                const responses = responseItems.length > 0 ?
+                  responseItems.map(r => r.trim()) :
+                  [responsesText]; // If we can't split, use the whole text
+
+                themes.push({ theme, responses });
+              }
+            }
+          }
+
+          // If we still don't have themes, try to find theme names in a list
+          if (themes.length === 0) {
+            const themeListMatch = data.response.match(/themes?:?[\s\n]*((?:-|\*|\d+\.)\s*[\w\s]+[\n\r]*)+/i);
+            const themeItems = themeListMatch && themeListMatch[1] ?
+              themeListMatch[1].match(/(?:-|\*|\d+\.)\s*([\w\s]+)/g) : null;
+
+            if (themeItems) {
+              // Create a theme for each item with a subset of responses
+              const responsesPerTheme = Math.ceil(verbatimResponses.length / themeItems.length);
+
+              themeItems.forEach((item: string, index: number) => {
+                const theme = item.replace(/(?:-|\*|\d+\.)\s*/, '').trim();
+                const startIdx = index * responsesPerTheme;
+                const endIdx = Math.min(startIdx + responsesPerTheme, verbatimResponses.length);
+                const responses = verbatimResponses.slice(startIdx, endIdx);
+
+                themes.push({ theme, responses });
+              });
+            }
+          }
         }
       }
 
-      // If we still couldn't find themes, create a simple structure
+      // If we still don't have themes, try to find them in the text
       if (themes.length === 0) {
-        // Try to identify potential themes from the text
         const potentialThemes = data.response.match(/(?:themes|categories|topics)\s+(?:include|are|identified)\s+([\w\s,]+)/i);
 
         if (potentialThemes && potentialThemes[1]) {
@@ -457,4 +750,3 @@ RETURN ONLY THIS JSON FORMAT WITHOUT ANY OTHER TEXT OR FORMATTING:
 }
 
 export const localAIService = new LocalAIService();
-

@@ -70,6 +70,7 @@ export default function Home() {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen py-2">
+      <script src="http://localhost:8097"></script>
       <div className="fixed top-4 right-4 flex items-center space-x-2">
         <Switch
           id="ai-mode"

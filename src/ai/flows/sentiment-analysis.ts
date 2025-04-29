@@ -14,6 +14,7 @@ import {z} from 'genkit';
 const SentimentAnalysisInputSchema = z.object({
   verbatimResponse: z.string().describe('The open-ended survey response to analyze.'),
   context: z.string().optional().describe('Optional context about the survey or respondent.'),
+  language: z.string().optional().describe('Language of the survey response. Defaults to English (en).'),
 });
 export type SentimentAnalysisInput = z.infer<typeof SentimentAnalysisInputSchema>;
 
@@ -34,6 +35,7 @@ const sentimentAnalysisPrompt = ai.definePrompt({
     schema: z.object({
       verbatimResponse: z.string().describe('The open-ended survey response to analyze.'),
       context: z.string().optional().describe('Optional context about the survey or respondent.'),
+      language: z.string().optional().describe('Language of the survey response. Defaults to English (en).'),
     }),
   },
   output: {
@@ -43,7 +45,19 @@ const sentimentAnalysisPrompt = ai.definePrompt({
       reason: z.string().optional().describe('Reasoning behind the sentiment score.'),
     }),
   },
-  prompt: `Analyze the sentiment of the following survey response. Provide a sentiment score between -1 and 1, a sentiment label (Positive, Negative, or Neutral), and the reasoning behind the score.\n\nSurvey Response: {{{verbatimResponse}}}\n\n{{#if context}}\nContext: {{{context}}}\n{{/if}}\n\nOutput in JSON format.`,
+  prompt: `Analyze the sentiment of the following survey response. Provide a sentiment score between -1 and 1, a sentiment label (Positive, Negative, or Neutral), and the reasoning behind the score.
+
+Survey Response: {{{verbatimResponse}}}
+
+{{#if context}}
+Context: {{{context}}}
+{{/if}}
+
+{{#if language}}
+Note: The survey response is in {{language}} language. Please analyze sentiment considering {{language}} language patterns and expressions. Cultural context may affect how sentiment is expressed.
+{{/if}}
+
+Output in JSON format.`,
 });
 
 const sentimentAnalysisFlow = ai.defineFlow<

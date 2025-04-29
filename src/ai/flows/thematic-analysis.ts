@@ -14,6 +14,7 @@ const ThematicAnalysisInputSchema = z.object({
   verbatimResponses: z
     .array(z.string())
     .describe('An array of open-ended survey responses (verbatim).'),
+  language: z.string().optional().describe('Language of the survey responses. Defaults to English (en).'),
 });
 export type ThematicAnalysisInput = z.infer<typeof ThematicAnalysisInputSchema>;
 
@@ -35,6 +36,7 @@ const prompt = ai.definePrompt({
       verbatimResponses: z
         .array(z.string())
         .describe('An array of open-ended survey responses (verbatim).'),
+      language: z.string().optional().describe('Language of the survey responses. Defaults to English (en).'),
     }),
   },
   output: {
@@ -53,6 +55,10 @@ Consider the following verbatim responses:
 {{#each verbatimResponses}}
 - {{{this}}}
 {{/each}}
+
+{{#if language}}
+Note: The survey responses are in {{language}} language. Please identify themes considering {{language}} language patterns and cultural context. Group similar concepts that may be expressed differently than in English.
+{{/if}}
 
 Identify the main themes discussed in the feedback and return an array of themes, each with a list of associated responses.
 `,
@@ -85,6 +91,7 @@ const thematicAnalysisFlow = ai.defineFlow<
     // Preprocess the responses before passing to the AI prompt
     const preprocessedInput = {
       verbatimResponses: preprocessResponses(input.verbatimResponses),
+      language: input.language
     };
 
     const {output} = await prompt(preprocessedInput);

@@ -31,9 +31,22 @@ export async function processSurveyData(file: File): Promise<SurveyData[]> {
           }
         } else if (fileType === 'json') {
           try {
-            data = JSON.parse(content);
-            if (!Array.isArray(data)) {
-              data = [data]; // Wrap single JSON object in an array for consistency
+            const parsedData = JSON.parse(content);
+
+            // Handle structured survey data with customer_feedback
+            if (!Array.isArray(parsedData) && parsedData.customer_feedback && Array.isArray(parsedData.customer_feedback)) {
+              // Create a special structure that preserves the original format but works with our app
+              data = [{
+                ...parsedData,
+                // Keep the original customer_feedback array intact
+                customer_feedback: parsedData.customer_feedback
+              }];
+            } else if (!Array.isArray(parsedData)) {
+              // For other non-array JSON objects, wrap in array for consistency
+              data = [parsedData];
+            } else {
+              // For JSON arrays, use as is
+              data = parsedData;
             }
           } catch (jsonError: any) {
             console.warn("Error parsing as JSON, attempting CSV parse:", jsonError);
