@@ -1,14 +1,13 @@
 "use client"
 
 import { useState } from 'react';
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/use-toast";
 import { processBranchSurveyData, getBranchRecommendationMatrix } from '@/services/branchSurveyService';
 import BranchRankingChart from '@/components/branch-analysis/branch-ranking';
-import BranchComments from '@/components/branch-analysis/branch-comments';
+import SimpleBranchComments from '@/components/branch-analysis/simple-branch-comments';
 import ImprovementCategoriesChart from '@/components/branch-analysis/improvement-categories';
 import ReasonsTable from '@/components/branch-analysis/reasons-table';
 import BranchImprovementMatrix from '@/components/branch-analysis/branch-improvement-matrix';
@@ -204,7 +203,9 @@ export default function BranchAnalysisPage() {
           reason: item['Reasons Of Score'],
           score: item['How would you rate your overall satisfaction with your branch visit'],
           date: item['Date'],
-          needCallback: item['Need Callback']
+          needCallback: item['Need Callback'],
+          // Include the detailed comment if available
+          detailedComment: item['Comments'] || ''
         }));
 
         // Calculate branch improvements
@@ -279,7 +280,7 @@ export default function BranchAnalysisPage() {
   const recommendationMatrix = getBranchRecommendationMatrix(branchData, mainFields);
 
   return (
-    <div className="container mx-auto py-8">
+    <div className="container mx-auto py-8"><script src="http://localhost:8097"></script>
       <h1 className="text-3xl font-bold mb-6">Branch Survey Analysis</h1>
       <p className="text-gray-600 mb-8">
         Upload your branch survey data to analyze branch performance, improvement areas, and customer feedback.
@@ -290,10 +291,10 @@ export default function BranchAnalysisPage() {
           <input type="file" onChange={handleFileChange} className="mb-4" />
 
           <div className="flex gap-2">
-            <Button
+            <button
               onClick={handleUpload}
               disabled={file === null || isLoading}
-              className="relative"
+              className="relative px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
             >
               {isLoading ? (
                 <>
@@ -303,24 +304,24 @@ export default function BranchAnalysisPage() {
               ) : (
                 'Upload and Analyze'
               )}
-            </Button>
+            </button>
 
-            <Button
-              variant="secondary"
+            <button
+              className="px-4 py-2 bg-gray-100 text-gray-800 rounded hover:bg-gray-200 disabled:opacity-50"
               onClick={loadSampleData}
               disabled={isLoading}
             >
               Load Sample Data
-            </Button>
+            </button>
 
             {branchData.length > 0 && (
-              <Button
-                variant="outline"
+              <button
+                className="px-4 py-2 border border-gray-200 rounded hover:bg-gray-50 disabled:opacity-50"
                 onClick={resetAnalysis}
                 disabled={isLoading}
               >
                 Reset
-              </Button>
+              </button>
             )}
           </div>
         </div>
@@ -469,7 +470,7 @@ export default function BranchAnalysisPage() {
                     <CardDescription>Add or edit comments for each branch</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <BranchComments
+                    <SimpleBranchComments
                       data={branchRankings}
                       onCommentUpdate={handleCommentUpdate}
                     />

@@ -203,6 +203,35 @@ export default function Home() {
           </CardContent>
         </Card>
 
+        <Card className="w-full max-w-2xl mx-auto">
+          <CardHeader>
+            <CardTitle>Demo Options</CardTitle>
+            <CardDescription>
+              Explore different demo options to test the AI Survey Analyzer
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Button
+                variant="outline"
+                className="h-auto py-4 flex flex-col items-center justify-center"
+                onClick={() => router.push('/demo')}
+              >
+                <span className="text-lg font-medium">Standard Demos</span>
+                <span className="text-sm text-gray-500 mt-1">Branch, Verbatim, and KPI Analysis</span>
+              </Button>
+              <Button
+                variant="default"
+                className="h-auto py-4 flex flex-col items-center justify-center bg-gradient-to-r from-blue-600 to-indigo-600"
+                onClick={() => router.push('/ai-survey-demo')}
+              >
+                <span className="text-lg font-medium">AI Survey Demo</span>
+                <span className="text-sm text-gray-200 mt-1">Test the AI analysis capabilities</span>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
         <DataUpload />
 
         <div className="mt-8">

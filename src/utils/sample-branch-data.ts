@@ -1,4 +1,5 @@
 // Sample branch data generator for testing
+import { generateCommentBasedOnScore } from './sample-survey-comments';
 
 export interface SampleBranchSurveyItem {
   'Case #': string;
@@ -17,16 +18,17 @@ export interface SampleBranchSurveyItem {
   'What needs to be improved based on your experience': string;
   'Which staff served you': string;
   'How would you rate your overall satisfaction with your branch visit': number;
+  'Comments': string; // Additional detailed comments
 }
 
 // Generate random branch names
 const branchNames = [
-  'Main Branch', 
-  'Downtown', 
-  'Westside', 
-  'Eastside', 
-  'North Hills', 
-  'South Valley', 
+  'Main Branch',
+  'Downtown',
+  'Westside',
+  'Eastside',
+  'North Hills',
+  'South Valley',
   'Central Plaza',
   'Business District',
   'University',
@@ -130,11 +132,22 @@ function randomIP(): string {
 function generateSampleItem(index: number): SampleBranchSurveyItem {
   const name = randomItem(['John', 'Mary', 'David', 'Sarah', 'Michael', 'Jennifer', 'Robert', 'Lisa', 'James', 'Patricia']);
   const surname = randomItem(['Smith', 'Johnson', 'Williams', 'Brown', 'Davis', 'Miller', 'Wilson', 'Moore', 'Taylor', 'Anderson']);
-  
+
   const branch = randomItem(branchNames);
   const satisfaction = randomScore(1, 5);
   const advocateScore = randomScore(0, 10);
-  
+
+  // Get improvement category
+  const improvementCategory = randomItem(improvementSuggestions);
+
+  // Generate detailed comment based on satisfaction score and improvement category
+  const detailedComment = generateCommentBasedOnScore(satisfaction, improvementCategory.toLowerCase());
+
+  // Use a shorter version for the Reasons Of Score field
+  const reasonOfScore = satisfaction >= 4
+    ? `Satisfied with ${randomItem(['service', 'staff', 'experience', 'facilities'])}: ${detailedComment.substring(0, 50)}...`
+    : `Dissatisfied with ${randomItem(['wait time', 'service', 'staff attitude', 'fees'])}: ${detailedComment.substring(0, 50)}...`;
+
   return {
     'Case #': `CASE-${index + 1000}`,
     'Country': 'United States',
@@ -145,13 +158,14 @@ function generateSampleItem(index: number): SampleBranchSurveyItem {
     'Email': randomEmail(name, surname),
     'Phone': randomPhone(),
     'IP': randomIP(),
-    'Reasons Of Score': randomItem(reasonsForScores),
-    'Need Callback': randomYesNo(),
+    'Reasons Of Score': reasonOfScore,
+    'Need Callback': satisfaction < 3 ? 'Yes' : randomYesNo(), // More likely to need callback if dissatisfied
     'AS': advocateScore,
     'What is the primary account that you have with Ecobank': randomItem(accountTypes),
-    'What needs to be improved based on your experience': randomItem(improvementSuggestions),
+    'What needs to be improved based on your experience': improvementCategory,
     'Which staff served you': randomItem(staffNames),
-    'How would you rate your overall satisfaction with your branch visit': satisfaction
+    'How would you rate your overall satisfaction with your branch visit': satisfaction,
+    'Comments': detailedComment
   };
 }
 
